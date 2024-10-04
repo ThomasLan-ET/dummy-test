@@ -1,0 +1,49 @@
+
+trigger: none
+
+pool:
+  vmImage: ubuntu-latest
+
+variables:
+  bergname: 'rg-sandbox'
+  besaname: 'saterraformbe'
+  becontainer: 'remote-be-tf'
+  bekey: 'tf.sandbox.terraform.state'
+
+stages:
+  - stage: tfdestroy 
+    jobs:
+      - job: destroy
+        steps:
+          - task: TerraformInstaller@0
+            displayName: tfinstall
+            inputs:
+              terraformVersion: 'latest'
+
+          - task: TerraformTaskV4@4
+            displayName: init
+            inputs:
+              provider: 'azurerm'
+              command: 'init'
+              workingDirectory: '$(System.DefaultWorkingDirectory)'
+              backendServiceArm: 'Batman'
+              backendAzureRmResourceGroupName: '$(bergname)'
+              backendAzureRmStorageAccountName: '$(besaname)'
+              backendAzureRmContainerName: '$(becontainer)'
+              backendAzureRmKey: '$(bekey)'
+
+          - task: TerraformTaskV4@4
+            displayName: plan
+            inputs:
+              provider: 'azurerm'
+              command: 'plan'
+              workingDirectory: '$(System.DefaultWorkingDirectory)'
+              environmentServiceNameAzureRM: 'Batman'
+
+          - task: TerraformTaskV4@4
+            displayName: destroy
+            inputs:
+              provider: 'azurerm'
+              command: 'destroy'
+              workingDirectory: '$(System.DefaultWorkingDirectory)'
+              environmentServiceNameAzureRM: 'Batman'

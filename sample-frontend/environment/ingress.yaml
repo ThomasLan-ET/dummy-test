@@ -1,0 +1,25 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: angular
+  annotations:
+    cert-manager.io/cluster-issuer: "cloudflare-letsencrypt"
+    kubernetes.io/ingress.class: nginx
+  namespace: bhd-sample-dev
+spec:
+  rules:
+    - host: dummy-test.etops.com.do
+      http:
+        paths:
+          - backend:
+              service:
+                port:
+                  number: 80
+                name: sample-frontend-lb-sevice
+            path: /
+            pathType: Prefix
+  tls:
+    - hosts:
+        - dummy-test.etops.com.do
+      secretName: angular-tls
+  ingressClassName: ngnix 

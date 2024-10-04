@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: sample-frontend-lb-sevice
+  labels:
+    app: angular
+spec:
+  type: ClusterIP
+  selector:
+    app: angular
+  ports:
+    - port: 80
+      targetPort: 80

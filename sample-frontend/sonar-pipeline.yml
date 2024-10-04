@@ -1,0 +1,105 @@
+
+
+variables:
+- group: dev-var  
+- group: sonar-var
+
+
+stages:
+- stage: Analyze
+  displayName: 'SonarQube Analysis'
+  jobs:
+  - job: SonarQubeAnalysis
+    pool:
+      name: BHD-agent
+      demands:
+        - Agent.Name -equals ubuntu
+    steps:
+    - task: NodeTool@0
+      inputs:
+        versionSpec: '16.x'
+      displayName: 'Instalar Node.js'
+
+    - script: |
+        echo "Installing Angular project dependencies"
+        npm install
+      workingDirectory: $(System.DefaultWorkingDirectory)/angular
+      displayName: 'Install dependencies'
+
+    - script: |
+        echo "Running SonarQube analysis"
+        source /etc/profile.d/sonar-scanner.sh
+        sonar-scanner \
+        -Dsonar.projectKey=sample-frontend \
+        -Dsonar.sources=. \
+        -Dsonar.host.url=$(sonar_host) \
+        -Dsonar.login=$(sonar_token)
+      workingDirectory: $(System.DefaultWorkingDirectory)/angular
+      displayName: 'Start SonarQube analysis'
+
+- stage: buildpush
+  displayName: 'Build and push images'
+  dependsOn: Analyze
+  jobs:
+    - job: buildpush
+      condition: succeeded()
+      pool:
+        name: BHD-agent
+        demands:
+        - Agent.Name -equals ubuntu   
+      steps:
+      - task: Docker@2
+        displayName: build and push
+        inputs:
+          containerRegistry: 'acr-connection'
+          repository: '$(repoimage)'
+          command: 'buildAndPush'
+          tags: |
+            latest
+            $(Build.BuildId)
+          Dockerfile: '**/angular/Dockerfile'
+
+      - task: PublishBuildArtifacts@1
+        inputs:
+          PathtoPublish: '$(System.DefaultWorkingDirectory)/environment'
+          ArtifactName: 'aks-manifests'
+          publishLocation: 'Container'
+
+- stage: ParallelJobs
+  displayName: 'Parallel Jobs'
+  jobs:
+    - job: HolaMundo
+      pool:
+        name: BHD-agent
+        demands:
+        - Agent.Name -equals ubuntu  
+      steps:
+        - checkout: none
+        - script: |
+            echo "Imprimir Hola Mundo 10 veces"
+            for i in {1..10}; do echo "$i - Hola Mundo"; done
+          displayName: 'Imprimir Hola Mundo'
+
+    - job: CrearArchivos
+      pool:
+        name: BHD-agent
+        demands:
+        - Agent.Name -equals ubuntu  
+      steps:
+        - checkout: none
+        - script: |
+            echo "Crear 10 archivos con la fecha actual"
+            for i in {1..10}; do touch archivo_$i.txt; done
+            ls -l
+          displayName: 'Crear y Mostrar Archivos'
+    
+- stage: FailBuild
+  displayName: 'Analysis Failures'
+  dependsOn: Analyze
+  jobs:
+  - job: FailAnalysis
+    condition: failed()
+    steps:
+    - script: |
+        echo "SonarQube analysis failed"
+      displayName: 'SonarQube analysis failedz'
